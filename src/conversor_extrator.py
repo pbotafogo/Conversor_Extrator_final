@@ -1,10 +1,11 @@
-import pandas as pd
-from sqlalchemy import create_engine
 import datetime
 import gzip
 import os
 import tkinter as tk
-from tkinter import filedialog, scrolledtext, messagebox, ttk
+from tkinter import filedialog, messagebox, scrolledtext, ttk
+
+import pandas as pd
+from sqlalchemy import create_engine
 
 dt_arq = datetime.datetime.now().strftime("%Y-%m-%d_%H_%M")
 
@@ -152,17 +153,17 @@ def converte_data_invert(data_string):
 def converter_extrator(referencia, dados, nome_saida=None):
     """
     Converte arquivos do extrator para CSV.
-    
+
     Args:
         referencia: Caminho do arquivo .REF.gz
         dados: Caminho do arquivo .TXT.gz
         nome_saida: Nome do arquivo de saída (opcional)
-    
+
     Returns:
         DataFrame com os dados processados
     """
     log_mensagem(f"Processando: {os.path.basename(referencia)}")
-    
+
     # Lê estrutura do arquivo de referência
     texto = read_gz(referencia)
     lista = []
@@ -193,7 +194,7 @@ def converter_extrator(referencia, dados, nome_saida=None):
                 colunas.append(col.replace("-", "_"))
 
     log_mensagem(f"Estrutura lida: {len(colunas)} colunas")
-    
+
     # Lê arquivo de dados
     dados_lista = read_gz(dados)
     log_mensagem(f"Registros encontrados: {len(dados_lista)}")
@@ -209,9 +210,10 @@ def converter_extrator(referencia, dados, nome_saida=None):
             ini = linha_lista[-2]
             fim = linha_lista[-1]
             col = linha_lista[0]
-            
+
             if col[3:5] == "DA":
-                linha_dados.append(converte_data_invert(linha[ini:fim].strip()))
+                linha_dados.append(
+                    converte_data_invert(linha[ini:fim].strip()))
             elif col[3:5] == "QT":
                 try:
                     linha_dados.append(int(linha[ini:fim].strip()))
@@ -223,14 +225,14 @@ def converter_extrator(referencia, dados, nome_saida=None):
 
     # Cria DataFrame
     df = pd.DataFrame(dados_final, columns=colunas)
-    
+
     # Substitui datas inválidas
     try:
         df = df.applymap(substituir_data_invalida)
     except:
-        df = df.apply(lambda x: x.map(substituir_data_invalida) 
+        df = df.apply(lambda x: x.map(substituir_data_invalida)
                       if x.dtype == 'object' else x)
-    
+
     # Ajusta campos específicos
     try:
         df['siape'] = df['siape'].astype(str).str.slice(start=5, stop=12)
@@ -261,7 +263,7 @@ def converter_extrator(referencia, dados, nome_saida=None):
         nome_arquivo = f"{nome_saida}_{dt_arq}.csv"
         df.to_csv(nome_arquivo, index=False, encoding='utf-8-sig', sep=';')
         log_mensagem(f"✓ Arquivo salvo: {nome_arquivo}")
-    
+
     return df
 
 
@@ -270,12 +272,12 @@ def getDirDetails(path=os.getcwd()):
     arquivos = []
     pathExists = os.path.exists(path)
     isDir = os.path.isdir(path)
-    
+
     if pathExists and isDir:
         for root, dirs, files in os.walk(path):
             for file in files:
-                arquivos.append({file.replace(".gz", ""): 
-                               os.path.join(root, file)})
+                arquivos.append({file.replace(".gz", ""):
+                                 os.path.join(root, file)})
     return arquivos
 
 
@@ -293,31 +295,31 @@ def selecionar_arquivo_individual():
     log_mensagem("\n" + "="*50)
     log_mensagem("CONVERSÃO INDIVIDUAL DE ARQUIVOS")
     log_mensagem("="*50)
-    
+
     # Seleciona arquivo REF
     ref_file = filedialog.askopenfilename(
         title="Selecione o arquivo de REFERÊNCIA (.REF.gz)",
         filetypes=[("Arquivo Referência", "*.REF.gz"), ("Todos", "*.*")]
     )
-    
+
     if not ref_file:
         log_mensagem("✗ Operação cancelada pelo usuário")
         return
-    
+
     log_mensagem(f"Referência: {os.path.basename(ref_file)}")
-    
+
     # Seleciona arquivo TXT
     txt_file = filedialog.askopenfilename(
         title="Selecione o arquivo de DADOS (.TXT.gz)",
         filetypes=[("Arquivo Dados", "*.TXT.gz"), ("Todos", "*.*")]
     )
-    
+
     if not txt_file:
         log_mensagem("✗ Operação cancelada pelo usuário")
         return
-    
+
     log_mensagem(f"Dados: {os.path.basename(txt_file)}")
-    
+
     # Solicita local de salvamento
     nome_base = os.path.splitext(os.path.basename(ref_file))[0].replace(
         '.REF', '')
@@ -327,20 +329,20 @@ def selecionar_arquivo_individual():
         initialfile=f"{nome_base}_{dt_arq}.csv",
         filetypes=[("CSV", "*.csv"), ("Todos", "*.*")]
     )
-    
+
     if not save_path:
         log_mensagem("✗ Operação cancelada pelo usuário")
         return
-    
+
     # Remove extensão e timestamp do nome (será adicionado pela função)
     save_name = save_path.replace(f"_{dt_arq}.csv", "").replace(".csv", "")
-    
+
     try:
         df = converter_extrator(ref_file, txt_file, save_name)
         log_mensagem(f"✓ Conversão concluída com sucesso!")
         log_mensagem(f"Total de registros: {len(df)}")
-        messagebox.showinfo("Sucesso", 
-                          f"Arquivo convertido com sucesso!\n{len(df)} registros processados")
+        messagebox.showinfo("Sucesso",
+                            f"Arquivo convertido com sucesso!\n{len(df)} registros processados")
     except Exception as e:
         log_mensagem(f"✗ ERRO: {str(e)}")
         messagebox.showerror("Erro", f"Erro ao converter arquivo:\n{str(e)}")
@@ -351,60 +353,85 @@ def selecionar_pasta_batch():
     log_mensagem("\n" + "="*50)
     log_mensagem("CONVERSÃO EM LOTE (PASTA)")
     log_mensagem("="*50)
-    
-    pasta = filedialog.askdirectory(
-        title="Selecione a pasta com arquivos REF.gz e TXT.gz"
+
+    # Seleciona pasta de origem
+    pasta_origem = filedialog.askdirectory(
+        title="Selecione a pasta ORIGEM com arquivos REF.gz e TXT.gz"
     )
-    
-    if not pasta:
+
+    if not pasta_origem:
         log_mensagem("✗ Operação cancelada pelo usuário")
         return
-    
-    log_mensagem(f"Pasta selecionada: {pasta}")
-    
+
+    log_mensagem(f"Pasta origem: {pasta_origem}")
+
     # Busca arquivos
-    arq = getDirDetails(pasta)
-    
+    arq = getDirDetails(pasta_origem)
+
     if not arq:
         log_mensagem("✗ Nenhum arquivo encontrado na pasta")
         messagebox.showwarning("Aviso", "Nenhum arquivo encontrado na pasta")
         return
+
+    # Conta quantos arquivos REF existem
+    total_ref = sum(1 for linha in arq for nome in linha if nome.split(".")[-1] == "REF")
     
+    if total_ref == 0:
+        log_mensagem("✗ Nenhum arquivo .REF.gz encontrado")
+        messagebox.showwarning("Aviso", "Nenhum arquivo .REF.gz encontrado na pasta")
+        return
+
+    log_mensagem(f"Arquivos .REF.gz encontrados: {total_ref}")
+
+    # Seleciona pasta de destino
+    pasta_destino = filedialog.askdirectory(
+        title="Selecione a pasta DESTINO para salvar os arquivos CSV"
+    )
+
+    if not pasta_destino:
+        log_mensagem("✗ Operação cancelada pelo usuário")
+        return
+
+    log_mensagem(f"Pasta destino: {pasta_destino}")
+    log_mensagem("\nIniciando processamento...\n")
+
     processados = 0
     erros = []
-    
+
     for linha in arq:
         for nome in linha:
             if nome.split(".")[-1] == "REF":
                 ref = linha[nome]
                 dados = linha[nome].replace('.REF.gz', '.TXT.gz')
-                
+
                 if not os.path.exists(dados):
                     log_mensagem(f"✗ Arquivo TXT não encontrado: {nome}")
                     erros.append(nome)
                     continue
-                
-                arquivo = linha[nome].replace('.REF.gz', '')
-                
+
+                # Gera caminho de saída na pasta destino
+                nome_arquivo_base = os.path.basename(linha[nome]).replace('.REF.gz', '')
+                arquivo_saida = os.path.join(pasta_destino, nome_arquivo_base)
+
                 try:
-                    converter_extrator(ref, dados, arquivo)
+                    converter_extrator(ref, dados, arquivo_saida)
                     processados += 1
                 except Exception as e:
                     log_mensagem(f"✗ Erro ao processar {nome}: {str(e)}")
                     erros.append(nome)
-    
+
     log_mensagem("\n" + "="*50)
     log_mensagem(f"PROCESSAMENTO CONCLUÍDO")
     log_mensagem(f"Arquivos processados: {processados}")
     log_mensagem(f"Arquivos com erro: {len(erros)}")
     log_mensagem("="*50)
-    
+
     if erros:
         messagebox.showwarning("Processamento Concluído com Avisos",
-                             f"Processados: {processados}\nErros: {len(erros)}")
+                               f"Processados: {processados}\nErros: {len(erros)}")
     else:
         messagebox.showinfo("Sucesso",
-                          f"Todos os arquivos foram processados!\nTotal: {processados}")
+                            f"Todos os arquivos foram processados!\nTotal: {processados}")
 
 
 def limpar_log():
@@ -480,7 +507,8 @@ btn_limpar.pack(side=tk.LEFT, padx=5)
 frame_log = tk.Frame(root)
 frame_log.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
-lbl_log = tk.Label(frame_log, text="Log de Processamento:", font=("Arial", 10, "bold"))
+lbl_log = tk.Label(frame_log, text="Log de Processamento:",
+                   font=("Arial", 10, "bold"))
 lbl_log.pack(anchor=tk.W)
 
 txt_log = scrolledtext.ScrolledText(
@@ -499,7 +527,8 @@ log_mensagem("CONVERSOR DE ARQUIVOS EXTRATOR SIAPE")
 log_mensagem("="*50)
 log_mensagem("Escolha uma opção:")
 log_mensagem("  📄 Converter Arquivo Individual - Selecione REF.gz e TXT.gz")
-log_mensagem("  📁 Converter Pasta (Lote) - Processa todos os arquivos de uma pasta")
+log_mensagem(
+    "  📁 Converter Pasta (Lote) - Processa todos os arquivos de uma pasta")
 log_mensagem("="*50 + "\n")
 
 # Rodapé
