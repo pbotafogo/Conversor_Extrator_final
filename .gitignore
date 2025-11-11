@@ -1,0 +1,55 @@
+# Ambiente Virtual Python
+venv/
+env/
+ENV/
+.venv/
+
+# Arquivos Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Banco de dados
+*.db
+*.sqlite
+*.sqlite3
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Sistema Operacional
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Arquivos de entrada/saída
+*.csv
+*.xlsx
+*.xls
+*.txt
+*.gz
+*.zip
+*.rar
+
+# Pastas de dados
+dados/
+output/
+Novos/
+FLUXO_MENSAL/
+
+# Logs
+*.log
+
+# Arquivos temporários
+temp/
+tmp/
+*.tmp
